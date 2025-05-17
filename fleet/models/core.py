@@ -21,7 +21,7 @@ class Vehicle(models.Model):
     ]
 
     vehicle_id = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100, blank=True)
+    model = models.CharField(max_length=100, blank=True)
     capacity = models.PositiveIntegerField(help_text="Capacity in kilograms")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     fuel_type = models.CharField(max_length=20, choices=FUEL_TYPE_CHOICES, default='diesel')
@@ -54,6 +54,9 @@ class Vehicle(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # In Vehicle model
+    driver_assigned = models.BooleanField(default=False, help_text="Indicates if a driver is assigned to this vehicle")
 
     def __str__(self):
         return f"{self.vehicle_id} ({self.status})"

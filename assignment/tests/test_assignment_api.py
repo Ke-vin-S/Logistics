@@ -14,7 +14,7 @@ class AssignmentAPITests(APITestCase):
     def setUp(self):
         self.vehicle = Vehicle.objects.create(
             vehicle_id="TRK001",
-            name="Truck 1",
+            model="Truck 1",
             capacity=1000,
             status="available",
             fuel_type="diesel"

@@ -9,7 +9,7 @@ class VehicleModelTest(TestCase):
     def setUp(self):
         self.vehicle = Vehicle.objects.create(
             vehicle_id="TRK001",
-            name="Test Truck 1",
+            model="Test Truck 1",
             capacity=1000,
             status="available",
             fuel_type="diesel",
@@ -22,7 +22,7 @@ class VehicleModelTest(TestCase):
         """Test vehicle creation and default values."""
         v = self.vehicle
         self.assertEqual(v.vehicle_id, "TRK001")
-        self.assertEqual(v.name, "Test Truck 1")
+        self.assertEqual(v.model, "Test Truck 1")
         self.assertEqual(v.capacity, 1000)
         self.assertEqual(v.status, "available")
         self.assertEqual(v.fuel_type, "diesel")
