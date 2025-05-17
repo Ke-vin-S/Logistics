@@ -1,4 +1,4 @@
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 import json
 import os
 import logging
@@ -7,19 +7,24 @@ logger = logging.getLogger(__name__)
 
 KAFKA_BROKER_URL = os.getenv("KAFKA_BROKER_URL", "localhost:9092")
 
-producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BROKER_URL,
-    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-    key_serializer=lambda k: k.encode("utf-8") if k else None,
-    linger_ms=10,
-    retries=3,
-)
+producer = Producer({
+    'bootstrap.servers': KAFKA_BROKER_URL
+})
+
+def delivery_report(err, msg):
+    if err is not None:
+        logger.error(f"Delivery failed for record {msg.key()}: {err}")
+    else:
+        logger.info(f"Record {msg.key()} successfully produced to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
 
 def publish_event(topic: str, key: str, payload: dict):
     try:
-        future = producer.send(topic, key=key, value=payload)
-        result = future.get(timeout=10)  # optional: wait for delivery
-        logger.info(f"Published to topic {topic}: {payload}")
-        return result
+        producer.produce(
+            topic=topic,
+            key=key,
+            value=json.dumps(payload),
+            callback=delivery_report
+        )
+        producer.flush()  # ensures all messages are delivered before exiting
     except Exception as e:
-        logger.error(f"Failed to publish to Kafka topic '{topic}': {e}")
+        logger.error(f"[Kafka Error] Failed to publish to topic '{topic}': {e}")

@@ -1,4 +1,4 @@
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer, KafkaException
 import json
 import os
 import logging
@@ -8,21 +8,30 @@ logger = logging.getLogger(__name__)
 KAFKA_BROKER_URL = os.getenv("KAFKA_BROKER_URL", "localhost:9092")
 
 def start_consumer(topic: str, group_id: str = "default-group", auto_offset_reset: str = "latest"):
-    consumer = KafkaConsumer(
-        topic,
-        bootstrap_servers=KAFKA_BROKER_URL,
-        group_id=group_id,
-        auto_offset_reset=auto_offset_reset,
-        enable_auto_commit=True,
-        value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-        key_deserializer=lambda k: k.decode("utf-8") if k else None,
-    )
+    consumer = Consumer({
+        'bootstrap.servers': KAFKA_BROKER_URL,
+        'group.id': group_id,
+        'auto.offset.reset': auto_offset_reset,
+    })
 
+    consumer.subscribe([topic])
     logger.info(f"Listening to topic: {topic}")
 
-    for message in consumer:
-        logger.info(f"Received: Key={message.key}, Value={message.value}")
-        handle_message(message.topic, message.key, message.value)
+    try:
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                raise KafkaException(msg.error())
+
+            value = json.loads(msg.value().decode("utf-8"))
+            key = msg.key().decode("utf-8") if msg.key() else None
+            handle_message(msg.topic(), key, value)
+    except KeyboardInterrupt:
+        print("Consumer stopped.")
+    finally:
+        consumer.close()
 
 def handle_message(topic: str, key: str, value: dict):
     if topic == "shipment.status.updated":
