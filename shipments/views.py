@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime
 from django.shortcuts import get_object_or_404
 
+from kafka_client.producer import publish_event
 from .models import Shipment
 from .serializers import ShipmentSerializer
 
@@ -48,7 +50,20 @@ class ShipmentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_dispatched(self, request, pk=None):
         shipment = get_object_or_404(Shipment, pk=pk)
-        return self.handle_transition(request, shipment, shipment.mark_dispatched, time_field='dispatch_time')
+        response = self.handle_transition(request, shipment, shipment.mark_dispatched, time_field='dispatch_time')
+
+        if response.status_code == 200:
+            publish_event(
+                topic="shipment.status.updated",
+                key=str(shipment.order_id),
+                payload={
+                    "shipment_id": shipment.shipment_id,
+                    "order_id": shipment.order_id,
+                    "status": "dispatched",
+                    "timestamp": timezone.now().isoformat()
+                }
+            )
+        return response
 
     @action(detail=True, methods=['post'])
     def mark_in_transit(self, request, pk=None):
@@ -58,7 +73,20 @@ class ShipmentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_delivered(self, request, pk=None):
         shipment = get_object_or_404(Shipment, pk=pk)
-        return self.handle_transition(request, shipment, shipment.mark_delivered, time_field='delivery_time')
+        response = self.handle_transition(request, shipment, shipment.mark_delivered, time_field='delivery_time')
+
+        if response.status_code == 200:
+            publish_event(
+                topic="shipment.status.updated",
+                key=str(shipment.order_id),
+                payload={
+                    "shipment_id": shipment.shipment_id,
+                    "order_id": shipment.order_id,
+                    "status": "delivered",
+                    "timestamp": timezone.now().isoformat()
+                }
+            )
+        return response
 
     @action(detail=True, methods=['post'])
     def mark_failed(self, request, pk=None):
