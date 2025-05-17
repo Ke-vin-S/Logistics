@@ -7,4 +7,4 @@ echo "Running migrate..."
 python manage.py migrate --noinput
 
 echo "Starting Django server on port ${DJANGO_PORT}..."
-python manage.py runserver 0.0.0.0:${DJANGO_PORT}
+python manage.py runserver 0.0.0.0:${DJANGO_PORT} || python manage.py runserver 8001
