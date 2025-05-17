@@ -32,7 +32,7 @@ class VehicleViewSet(viewsets.ModelViewSet):
     lookup_field = 'vehicle_id'
     lookup_url_kwarg = 'vehicle_id'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'fuel_type', 'depot_id']
+    filterset_fields = ['status', 'fuel_type', 'depot_id', 'driver_assigned']
     search_fields = ['vehicle_id', 'name', 'plate_number', 'depot_id']
     ordering_fields = ['vehicle_id', 'capacity', 'status', 'created_at']
     ordering = ['vehicle_id']

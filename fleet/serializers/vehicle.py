@@ -28,7 +28,8 @@ class VehicleSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'is_available',
-            'location_is_stale'
+            'location_is_stale',
+            'driver_assigned'
         ]
         read_only_fields = ['created_at', 'updated_at', 'last_location_update']
 

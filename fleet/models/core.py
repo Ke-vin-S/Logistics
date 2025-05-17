@@ -55,6 +55,9 @@ class Vehicle(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # In Vehicle model
+    driver_assigned = models.BooleanField(default=False, help_text="Indicates if a driver is assigned to this vehicle")
+
     def __str__(self):
         return f"{self.vehicle_id} ({self.status})"
 

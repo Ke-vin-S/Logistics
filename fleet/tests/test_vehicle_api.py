@@ -190,3 +190,27 @@ class VehicleAPITest(TestCase):
         self.assertIn("location_name", current)
         self.assertIn("location_name", history[0])
         self.assertTrue(current["location_name"])  # mock name string
+
+    def test_filter_by_driver_assigned_true(self):
+        self.vehicle1.driver_assigned = True
+        self.vehicle1.save()
+
+        response = self.client.get('/api/fleet/vehicles/?driver_assigned=true')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["vehicles"]), 1)
+        self.assertEqual(response.data["vehicles"][0]["vehicle_id"], "TRK001")
+
+    def test_filter_by_driver_assigned_false(self):
+        self.vehicle1.driver_assigned = True
+        self.vehicle1.save()
+        self.vehicle2.driver_assigned = False
+        self.vehicle2.save()
+        self.vehicle3.driver_assigned = False
+        self.vehicle3.save()
+
+        response = self.client.get('/api/fleet/vehicles/?driver_assigned=false')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        vehicle_ids = [v["vehicle_id"] for v in response.data["vehicles"]]
+        self.assertIn("TRK002", vehicle_ids)
+        self.assertIn("TRK003", vehicle_ids)
+        self.assertNotIn("TRK001", vehicle_ids)
