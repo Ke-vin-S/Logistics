@@ -73,7 +73,7 @@ class FuelRecordViewSet(viewsets.ModelViewSet):
 
                 vehicle_stats.append({
                     'vehicle_id': vehicle.vehicle_id,
-                    'name': vehicle.name,
+                    'name': vehicle.model,
                     'records_count': vehicle_totals['count'],
                     'total_cost': vehicle_totals['total_cost'],
                     'total_amount': vehicle_totals['total_amount']

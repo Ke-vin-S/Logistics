@@ -1,7 +1,16 @@
-from .vehicle import VehicleSerializer, VehicleLocationSerializer
+from .vehicle import (
+    VehicleSerializer,
+    VehicleSummarySerializer,
+    VehicleLocationDetailSerializer,
+    LocationPointSerializer
+)
 
 from django.conf import settings
 
+# Always import base detail serializer
+from .vehicle import VehicleDetailSerializer as BaseVehicleDetailSerializer
+
+# If extended mode is enabled, override VehicleDetailSerializer
 if settings.ENABLE_FLEET_EXTENDED_MODELS:
     from .maintenance import (
         MaintenanceRecordSerializer,
@@ -9,18 +18,16 @@ if settings.ENABLE_FLEET_EXTENDED_MODELS:
     )
     from .fuel import FuelRecordSerializer
     from .trip import TripRecordSerializer
-
     from rest_framework import serializers
 
-    class VehicleDetailSerializer(VehicleSerializer):
+    class VehicleDetailSerializer(BaseVehicleDetailSerializer):
         maintenance_records = MaintenanceRecordSerializer(many=True, read_only=True)
         fuel_records = serializers.SerializerMethodField()
         trip_records = serializers.SerializerMethodField()
-        location_history = serializers.SerializerMethodField()
 
-        class Meta(VehicleSerializer.Meta):
-            fields = VehicleSerializer.Meta.fields + [
-                'maintenance_records', 'fuel_records', 'trip_records', 'location_history'
+        class Meta(BaseVehicleDetailSerializer.Meta):
+            fields = BaseVehicleDetailSerializer.Meta.fields + [
+                'maintenance_records', 'fuel_records', 'trip_records'
             ]
 
         def get_fuel_records(self, obj):
@@ -30,13 +37,5 @@ if settings.ENABLE_FLEET_EXTENDED_MODELS:
         def get_trip_records(self, obj):
             records = obj.trip_records.all()[:5]
             return TripRecordSerializer(records, many=True).data
-
-        def get_location_history(self, obj):
-            records = obj.location_history.all()[:10]
-            return VehicleLocationSerializer(records, many=True).data
-
 else:
-    class VehicleDetailSerializer(VehicleSerializer):
-        """Fallback when extended models are disabled."""
-        class Meta(VehicleSerializer.Meta):
-            fields = VehicleSerializer.Meta.fields
+    VehicleDetailSerializer = BaseVehicleDetailSerializer

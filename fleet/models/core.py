@@ -21,7 +21,7 @@ class Vehicle(models.Model):
     ]
 
     vehicle_id = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100, blank=True)
+    model = models.CharField(max_length=100, blank=True)
     capacity = models.PositiveIntegerField(help_text="Capacity in kilograms")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     fuel_type = models.CharField(max_length=20, choices=FUEL_TYPE_CHOICES, default='diesel')

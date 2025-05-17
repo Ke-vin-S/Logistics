@@ -5,17 +5,17 @@ from .models import Vehicle, VehicleLocation
 @admin.register(Vehicle)
 class VehicleAdmin(admin.ModelAdmin):
     list_display = (
-        'vehicle_id', 'name', 'capacity', 'status', 'fuel_type',
+        'vehicle_id', 'model', 'capacity', 'status', 'fuel_type',
         'depot_id', 'depot_latitude', 'depot_longitude', 'last_location_update'
     )
     list_filter = ('status', 'fuel_type')
-    search_fields = ('vehicle_id', 'name', 'plate_number', 'depot_id')
+    search_fields = ('vehicle_id', 'model', 'plate_number', 'depot_id')
     readonly_fields = ('created_at', 'updated_at', 'last_location_update')
 
     fieldsets = (
         ('Basic Information', {
             'fields': (
-                'vehicle_id', 'name', 'plate_number',
+                'vehicle_id', 'model', 'plate_number',
                 'year_of_manufacture', 'status'
             )
         }),

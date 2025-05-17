@@ -163,7 +163,7 @@ class TripRecordViewSet(viewsets.ModelViewSet):
 
                 vehicle_stats.append({
                     'vehicle_id': vehicle.vehicle_id,
-                    'name': vehicle.name,
+                    'name': vehicle.model,
                     'trip_count': v_trip_count,
                     'total_distance': v_total_distance,
                     'total_duration': v_total_duration,

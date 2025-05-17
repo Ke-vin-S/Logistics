@@ -1,18 +1,18 @@
 import os
 import django
 
+from fleet.serializers.vehicle import VehicleSummarySerializer, \
+    VehicleLocationDetailSerializer
 from fleet.services.status_services import mark_vehicle_assigned, mark_vehicle_available, update_vehicle_status
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'logistics_core.settings')
 django.setup()
 
 from django.db.models import Sum, Count
-from django.utils import timezone
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from datetime import datetime
 
 from fleet.models import Vehicle, VehicleLocation
 from django.conf import settings
@@ -29,11 +29,22 @@ class VehicleViewSet(viewsets.ModelViewSet):
     """
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
+    lookup_field = 'vehicle_id'
+    lookup_url_kwarg = 'vehicle_id'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'fuel_type', 'depot_id']
     search_fields = ['vehicle_id', 'name', 'plate_number', 'depot_id']
     ordering_fields = ['vehicle_id', 'capacity', 'status', 'created_at']
     ordering = ['vehicle_id']
+
+    def list(self, request, *args, **kwargs):
+        """
+        Override default list to return limited truck data only.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        serializer = VehicleSummarySerializer(queryset, many=True)
+        return Response({'vehicles': serializer.data})
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -64,20 +75,20 @@ class VehicleViewSet(viewsets.ModelViewSet):
         return queryset
 
     @action(detail=True, methods=['post'])
-    def mark_available(self, request, pk=None):
+    def mark_available(self, request, vehicle_id=None):
         vehicle = self.get_object()
         mark_vehicle_available(vehicle)
         return Response({'vehicle_id': vehicle.vehicle_id, 'status': 'available'})
 
     @action(detail=True, methods=['post'])
-    def mark_assigned(self, request, pk=None):
+    def mark_assigned(self, request, vehicle_id=None):
         vehicle = self.get_object()
         mark_vehicle_assigned(vehicle)
         return Response({'vehicle_id': vehicle.vehicle_id, 'status': 'assigned'})
 
     # Admin only
     @action(detail=True, methods=['post'])
-    def change_status(self, request, pk=None):
+    def change_status(self, request, vehicle_id=None):
         vehicle = self.get_object()
         new_status = request.data.get('status')
 
@@ -88,8 +99,9 @@ class VehicleViewSet(viewsets.ModelViewSet):
         update_vehicle_status(vehicle, new_status)
         return Response({'vehicle_id': vehicle.vehicle_id, 'status': new_status})
 
+
     @action(detail=True, methods=['post'])
-    def update_location(self, request, pk=None):
+    def update_location(self, request, vehicle_id=None):
         vehicle = self.get_object()
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
@@ -113,10 +125,10 @@ class VehicleViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=400)
 
     @action(detail=True, methods=['post'])
-    def assign_depot(self, request, pk=None):
-        """
+    def assign_depot(self, request, vehicle_id=None):
+        f"""
         Assign or update a vehicle's depot.
-        POST /api/fleet/vehicles/{id}/assign_depot/
+        POST /api/fleet/vehicles/{vehicle_id}/assign_depot/
         {
             "depot_id": "WHS001",
             "latitude": 6.9271,
@@ -171,7 +183,6 @@ class VehicleViewSet(viewsets.ModelViewSet):
             'maintenance_count': maintenance_count,
             'utilization_rate': utilization_rate
         })
-
     @action(detail=False, methods=['get'])
     def by_depot(self, request):
         depot_id = request.query_params.get('depot_id')
@@ -192,6 +203,15 @@ class VehicleViewSet(viewsets.ModelViewSet):
         ).order_by('depot_id')
 
         return Response({'by_depot': stats})
+
+    @action(detail=True, methods=['get'], url_path='location_overview')
+    def location_overview(self, request, vehicle_id=None):
+        """
+        GET /api/fleet/vehicles/<vehicle_id>/location_overview/
+        """
+        vehicle = self.get_object()
+        serializer = VehicleLocationDetailSerializer(vehicle)
+        return Response(serializer.data)
 
     # # To be implemented with maintenance part
     # @action(detail=True, methods=['post'])
