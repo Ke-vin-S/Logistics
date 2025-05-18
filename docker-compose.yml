@@ -31,3 +31,11 @@ services:
     env_file: .env
     depends_on:
       - kafka
+
+  kafka-consumer:
+    build: .
+    command: python manage.py run_consumer
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+    depends_on:
+      - kafka
