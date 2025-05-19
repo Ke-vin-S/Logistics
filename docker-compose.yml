@@ -3,6 +3,7 @@ version: '3.8'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -13,19 +14,23 @@ services:
     image: confluentinc/cp-kafka:7.4.0
     ports:
       - "9092:9092"
+    container_name: kafka
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
       - zookeeper
     networks:
       - scms
 
   logistics-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: logistics-service
     ports:
       - "${LOGISTICS_SERVICE_PORT:-8002}:8000"
@@ -39,12 +44,16 @@ services:
       - scms
 
   kafka-consumer:
-    build: .
-    command: python manage.py run_consumer
+    container_name: kafka-consumer
+    build:
+      context: .
+      dockerfile: Consumer.Dockerfile
+    command: python manage.py consume_orders
     environment:
       - KAFKA_BROKER_URL=kafka:9092
     depends_on:
       - kafka
+    env_file: .env
     networks:
       - scms
 
