@@ -6,6 +6,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - scms
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -19,6 +21,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - zookeeper
+    networks:
+      - scms
 
   logistics-service:
     build: .
@@ -31,6 +35,8 @@ services:
     env_file: .env
     depends_on:
       - kafka
+    networks:
+      - scms
 
   kafka-consumer:
     build: .
@@ -39,3 +45,10 @@ services:
       - KAFKA_BROKER_URL=kafka:9092
     depends_on:
       - kafka
+    networks:
+      - scms
+
+networks:
+  scms:
+    external: true
+    name: scms-network
