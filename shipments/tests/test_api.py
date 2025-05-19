@@ -4,6 +4,7 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 from shipments.models import Shipment
+from shipments.services.status_services import update_shipment_status
 
 
 class ShipmentAPITestCase(TestCase):
@@ -42,7 +43,7 @@ class ShipmentAPITestCase(TestCase):
         self.assertEqual(response.data["status"], "scheduled")
 
     def test_mark_dispatched(self):
-        self.shipment.mark_scheduled(timezone.now())
+        update_shipment_status(self.shipment, "scheduled", timezone.now())
         dispatch_time = (timezone.now() + timedelta(hours=1)).isoformat()
         response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_dispatched/", {
             "dispatch_time": dispatch_time
@@ -50,17 +51,9 @@ class ShipmentAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK, msg=response.data)
         self.assertEqual(response.data["status"], "dispatched")
 
-    def test_mark_in_transit(self):
-        self.shipment.mark_scheduled()
-        self.shipment.mark_dispatched()
-        response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_in_transit/")
-        self.assertEqual(response.status_code, status.HTTP_200_OK, msg=response.data)
-        self.assertEqual(response.data["status"], "in_transit")
-
     def test_mark_delivered(self):
-        self.shipment.mark_scheduled()
-        self.shipment.mark_dispatched()
-        self.shipment.mark_in_transit()
+        update_shipment_status(self.shipment, "scheduled")
+        update_shipment_status(self.shipment, "dispatched")
         delivery_time = timezone.now().isoformat()
         response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_delivered/", {
             "delivery_time": delivery_time
@@ -78,33 +71,23 @@ class ShipmentAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, msg=response.data)
         self.assertIn("error", response.data)
 
-    def test_invalid_transition_delivered_without_in_transit(self):
-        self.shipment.mark_scheduled()
-        self.shipment.mark_dispatched()
-        response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_delivered/", {
-            "delivery_time": timezone.now().isoformat()
-        }, format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, msg=response.data)
-        self.assertIn("error", response.data)
-
     def test_invalid_transition_failed_after_delivery(self):
-        self.shipment.mark_scheduled()
-        self.shipment.mark_dispatched()
-        self.shipment.mark_in_transit()
-        self.shipment.mark_delivered()
+        update_shipment_status(self.shipment, "scheduled")
+        update_shipment_status(self.shipment, "dispatched")
+        update_shipment_status(self.shipment, "delivered")
         response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_failed/", {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, msg=response.data)
         self.assertIn("error", response.data)
 
     def test_revert_to_pending_from_scheduled(self):
-        self.shipment.mark_scheduled()
+        update_shipment_status(self.shipment, "scheduled")
         response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_pending/", {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK, msg=response.data)
         self.assertEqual(response.data["status"], "pending")
 
     def test_invalid_revert_to_pending_from_dispatched(self):
-        self.shipment.mark_scheduled()
-        self.shipment.mark_dispatched()
+        update_shipment_status(self.shipment, "scheduled")
+        update_shipment_status(self.shipment, "dispatched")
         response = self.client.post(f"/api/shipments/{self.shipment.id}/mark_pending/", {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, msg=response.data)
         self.assertIn("error", response.data)

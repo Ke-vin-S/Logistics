@@ -26,7 +26,7 @@ class AssignmentActionCompletionTests(APITestCase):
             demand=500,
             origin={"lat": 7.2, "lng": 80.1},
             destination={"lat": 7.3, "lng": 80.2},
-            status="in_transit"
+            status="dispatched"
         )
 
         self.assignment = Assignment.objects.create(

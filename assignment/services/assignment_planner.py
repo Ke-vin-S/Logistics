@@ -45,6 +45,7 @@ class AssignmentPlanner:
         logger.info(f"{len(shipment_map)} shipments added to VRP input.")
 
         vrp_input = VRPCompiler.compile(builder)
+        print(vrp_input.distance_matrix)
         logger.debug(f"Compiled VRP input with {len(vrp_input.location_ids)} locations.")
 
         result = solve_cvrp(vrp_input)
