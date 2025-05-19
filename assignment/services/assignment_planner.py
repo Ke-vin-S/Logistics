@@ -93,5 +93,9 @@ class AssignmentPlanner:
 
             assignments.append(assignment)
 
+        logger.info(f"Shipments changed status to scheduled.")
+        for s in self.shipments:
+            s.mark_scheduled()
+
         logger.info(f"{len(assignments)} assignments successfully created.")
         return assignments

@@ -8,6 +8,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         vehicles = Vehicle.objects.filter(status='available')
-        shipments = Shipment.objects.filter(status='ready')
+        shipments = Shipment.objects.filter(status='pending')
         planner = AssignmentPlanner(vehicles, shipments)
         planner.plan_assignments()
