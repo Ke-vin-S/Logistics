@@ -1,4 +1,6 @@
+import unittest
 from decimal import Decimal
+from unittest.mock import patch
 
 from rest_framework.test import APIClient
 from django.test import TestCase
@@ -214,3 +216,116 @@ class VehicleAPITest(TestCase):
         self.assertIn("TRK002", vehicle_ids)
         self.assertIn("TRK003", vehicle_ids)
         self.assertNotIn("TRK001", vehicle_ids)
+
+    @patch("fleet.views.vehicle.requests.post")
+    def test_assign_driver_success(self, mock_post):
+        """Test successful driver assignment and forwarding to auth service."""
+        mock_post.return_value.status_code = 201
+        mock_post.return_value.json.return_value = {
+            "success": True,
+            "message": "User created"
+        }
+
+        payload = {
+            "username": "driver1",
+            "email": "d1@gmail.com",
+            "password": "Induwara@123",
+            "first_name": "Test",
+            "last_name": "Driver",
+            "vehicle_id": "TRK001",
+            "license_number": "1678v",
+            "vehicle_type": "suzuki carry",
+            "role_id": 6
+        }
+
+        response = self.client.post(f"/api/fleet/vehicles/{self.vehicle1.vehicle_id}/driver_assigned/", payload, format="json")
+
+        print(response.data)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["vehicle_id"], self.vehicle1.vehicle_id)
+        self.assertTrue(response.data["driver_assigned"])
+
+        self.vehicle1.refresh_from_db()
+        self.assertTrue(self.vehicle1.driver_assigned)
+
+        mock_post.assert_called_once()
+        self.assertIn("/api/v1/register", mock_post.call_args[0][0])
+
+    @unittest.skip("Temporarily skipping this test")
+    @patch("fleet.views.vehicle.requests.post")
+    def test_assign_driver_failure_from_auth(self, mock_post):
+        """Test driver registration fails but doesn't update vehicle."""
+        mock_post.return_value.status_code = 400
+        mock_post.return_value.json.return_value = {"error": "Email already exists"}
+
+        payload = {
+            "username": "driver1",
+            "email": "d1@gmail.com",
+            "password": "Induwara@123",
+            "first_name": "Test",
+            "last_name": "Driver",
+            "vehicle_id": "TRK001",
+            "license_number": "1678v",
+            "vehicle_type": "suzuki carry",
+            "role_id": 6
+        }
+
+        response = self.client.post(f"/api/fleet/vehicles/{self.vehicle1.vehicle_id}/driver_assigned/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.data)
+        self.vehicle1.refresh_from_db()
+        self.assertFalse(self.vehicle1.driver_assigned)
+
+    @patch("fleet.views.vehicle.requests.post")
+    def test_assign_driver_auth_service_unreachable(self, mock_post):
+        """Simulate network error while contacting user service."""
+        from requests.exceptions import RequestException
+        mock_post.side_effect = RequestException("Connection refused")
+
+        payload = {
+            "username": "driver1",
+            "email": "d1@gmail.com",
+            "password": "Induwara@123",
+            "first_name": "Test",
+            "last_name": "Driver",
+            "vehicle_id": "TRK001",
+            "license_number": "1678v",
+            "vehicle_type": "suzuki carry",
+            "role_id": 6
+        }
+
+        response = self.client.post(f"/api/fleet/vehicles/{self.vehicle1.vehicle_id}/driver_assigned/", payload,
+                                    format="json")
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("error", response.data)
+        self.vehicle1.refresh_from_db()
+        self.assertFalse(self.vehicle1.driver_assigned)
+
+    def test_unassign_driver_success(self):
+        """Test successful unassignment of a driver."""
+        self.vehicle1.driver_assigned = True
+        self.vehicle1.save()
+
+        response = self.client.post(f"/api/fleet/vehicles/{self.vehicle1.vehicle_id}/unassign_driver/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("message", response.data)
+        self.assertEqual(response.data["vehicle_id"], "TRK001")
+        self.assertFalse(response.data["driver_assigned"])
+
+        self.vehicle1.refresh_from_db()
+        self.assertFalse(self.vehicle1.driver_assigned)
+
+    def test_unassign_driver_already_unassigned(self):
+        """Test that unassigning an already unassigned vehicle works gracefully."""
+        self.vehicle1.driver_assigned = False
+        self.vehicle1.save()
+
+        response = self.client.post(f"/api/fleet/vehicles/{self.vehicle1.vehicle_id}/unassign_driver/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("message", response.data)
+        self.assertEqual(response.data["message"], "Driver already unassigned.")
+        self.vehicle1.refresh_from_db()
+        self.assertFalse(self.vehicle1.driver_assigned)

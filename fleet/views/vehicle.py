@@ -1,5 +1,7 @@
 import os
 import django
+import requests
+from rest_framework.permissions import AllowAny
 
 from fleet.serializers.vehicle import VehicleSummarySerializer, \
     VehicleLocationDetailSerializer
@@ -213,35 +215,50 @@ class VehicleViewSet(viewsets.ModelViewSet):
         serializer = VehicleLocationDetailSerializer(vehicle)
         return Response(serializer.data)
 
-    # # To be implemented with maintenance part
-    # @action(detail=True, methods=['post'])
-    # def change_status(self, request, pk=None):
-    #     vehicle = self.get_object()
-    #     new_status = request.data.get('status')
-    #
-    #     if not new_status:
-    #         return Response({'error': 'Status is required'}, status=400)
-    #
-    #     if new_status not in dict(Vehicle.STATUS_CHOICES):
-    #         return Response({'error': f'Invalid status: {new_status}'}, status=400)
-    #
-    #     if new_status == 'maintenance' and vehicle.status != 'maintenance' and settings.ENABLE_FLEET_EXTENDED_MODELS:
-    #         maintenance_type = request.data.get('maintenance_type', 'routine')
-    #         description = request.data.get('description', 'Routine maintenance')
-    #         scheduled_date = request.data.get('scheduled_date', timezone.now().date().isoformat())
-    #         try:
-    #             scheduled_date = datetime.fromisoformat(scheduled_date).date()
-    #         except ValueError:
-    #             scheduled_date = timezone.now().date()
-    #
-    #         MaintenanceRecord.objects.create(
-    #             vehicle=vehicle,
-    #             maintenance_type=maintenance_type,
-    #             description=description,
-    #             scheduled_date=scheduled_date,
-    #             status='in_progress'
-    #         )
-    #
-    #     vehicle.status = new_status
-    #     vehicle.save(update_fields=['status', 'updated_at'])
-    #     return Response(VehicleSerializer(vehicle).data)
+    @action(detail=True, methods=['post'], url_path='driver_assigned', permission_classes=[AllowAny])
+    def assign_driver(self, request, vehicle_id=None):
+        """
+        POST /api/fleet/vehicles/<vehicle_id>/driver_assigned/
+        """
+        vehicle = self.get_object()
+
+        # Forward the same body to the auth register endpoint
+        register_url = f"{settings.USER_SERVICE_URL}/api/v1/register/"
+
+        try:
+            response = requests.post(register_url, json=request.data)
+            response_data = response.json()
+            if response.status_code not in [200, 201] or not response_data.get("success"):
+                return Response({
+                    "error": "Driver registration failed",
+                    "details": response_data
+                }, status=response.status_code)
+        except requests.RequestException as e:
+            return Response({"error": f"Failed to contact auth service: {str(e)}"}, status=500)
+
+        # Update driver_assigned status in Vehicle
+        vehicle.driver_assigned = True
+        vehicle.save(update_fields=['driver_assigned', 'updated_at'])
+
+        return Response({
+            "message": "Driver registered and assigned to vehicle.",
+            "vehicle_id": vehicle.vehicle_id,
+            "driver_assigned": True
+        }, status=201)
+
+    @action(detail=True, methods=['post'], url_path='unassign_driver')
+    def unassign_driver(self, request, vehicle_id=None):
+        """
+        POST /api/fleet/vehicles/<vehicle_id>/unassign_driver/
+        """
+        vehicle = self.get_object()
+        if not vehicle.driver_assigned:
+            return Response({"message": "Driver already unassigned."}, status=200)
+
+        vehicle.driver_assigned = False
+        vehicle.save(update_fields=['driver_assigned', 'updated_at'])
+        return Response({
+            "message": "Driver unassigned from vehicle.",
+            "vehicle_id": vehicle.vehicle_id,
+            "driver_assigned": False
+        }, status=200)
