@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from shipments.services.status_services import update_shipment_status
 from .models.assignment import Assignment
 from .models.assignment_item import AssignmentItem
 from fleet.models import Vehicle, VehicleLocation
@@ -138,10 +139,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
 
         # Optional: update shipment status
         if item.role == "delivery":
-            item.shipment.mark_delivered()
+            update_shipment_status(item.shipment, "delivered", timestamp=item.delivered_at)
         elif item.role == "pickup":
-            item.shipment.mark_dispatched()
-            item.shipment.mark_in_transit()
+            update_shipment_status(item.shipment, "dispatched", timestamp=item.delivered_at)
         item.shipment.save()
 
         return Response({

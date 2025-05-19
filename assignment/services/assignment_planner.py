@@ -1,6 +1,8 @@
 import logging
 from typing import List
-from datetime import datetime
+
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from assignment.models.assignment import Assignment
 from assignment.models.assignment_item import AssignmentItem
@@ -9,6 +11,7 @@ from fleet.models import Vehicle
 from route_optimizer.services.vrp_solver import solve_cvrp
 from shipments.models import Shipment
 from route_optimizer.models.vrp_input import VRPInputBuilder, VRPCompiler, Location, DeliveryTask
+from shipments.services.status_services import update_shipment_status
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -45,7 +48,6 @@ class AssignmentPlanner:
         logger.info(f"{len(shipment_map)} shipments added to VRP input.")
 
         vrp_input = VRPCompiler.compile(builder)
-        print(vrp_input.distance_matrix)
         logger.debug(f"Compiled VRP input with {len(vrp_input.location_ids)} locations.")
 
         result = solve_cvrp(vrp_input)
@@ -96,7 +98,10 @@ class AssignmentPlanner:
 
         logger.info(f"Shipments changed status to scheduled.")
         for s in self.shipments:
-            s.mark_scheduled()
+            try:
+                update_shipment_status(s, "scheduled", timestamp=timezone.now())
+            except ValidationError as e:
+                logger.warning(f"Could not schedule shipment {s.shipment_id}: {e}")
 
         logger.info(f"{len(assignments)} assignments successfully created.")
         return assignments

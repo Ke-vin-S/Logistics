@@ -72,7 +72,7 @@ class AssignmentActionCompletionTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["message"], "Pickup confirmed")
         self.assertEqual(response.data["shipment_id"], self.shipment.id)
-        self.assertEqual(response.data["new_status"], "in_transit")
+        self.assertEqual(response.data["new_status"], "dispatched")
 
     def test_confirm_action_invalid_assignment_item(self):
         url = f"/api/assignments/{self.assignment.id}/actions/9999/complete/"
