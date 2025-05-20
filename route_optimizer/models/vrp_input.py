@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict
 
@@ -68,15 +69,38 @@ class VRPInputBuilder:
         self.tasks: List[DeliveryTask] = []
         self.location_labels: List[str] = []
 
+    def _haversine_distance(self, loc1: Location, loc2: Location) -> int:
+        R = 6371  # Earth radius in kilometers
+        lat1, lon1 = math.radians(loc1.lat), math.radians(loc1.lon)
+        lat2, lon2 = math.radians(loc2.lat), math.radians(loc2.lon)
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        return int(R * c * 1000)
+
     def _add_location(self, loc: Location, label: str) -> int:
         if label in self.location_labels:
             raise ValueError(f"Duplicate label detected: {label}")
         index = len(self.locations)
         self.locations.append(loc)
         self.location_labels.append(label)
-        for row in self.distance_matrix:
-            row.append(0)
-        self.distance_matrix.append([0] * (index + 1))
+
+        # Add a new row with calculated distances
+        new_row = []
+        for existing_loc in self.locations[:-1]:
+            dist = self._haversine_distance(loc, existing_loc)
+            new_row.append(dist)
+        new_row.append(0)  # distance to self
+
+        # Append this new row
+        self.distance_matrix.append(new_row)
+
+        # Update existing rows to include the new column
+        for i in range(index):
+            self.distance_matrix[i].append(new_row[i])
+
         return index
 
     def set_distance(self, from_index: int, to_index: int, distance: int):

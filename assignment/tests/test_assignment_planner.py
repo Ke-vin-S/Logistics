@@ -8,43 +8,45 @@ import uuid
 
 class AssignmentPlannerTestCase(TestCase):
     def setUp(self):
+        # Vehicles located within Colombo
         self.vehicle1 = Vehicle.objects.create(
             vehicle_id="TRK001",
             capacity=100,
             status="available",
-            depot_latitude=6.9,
-            depot_longitude=79.8
+            depot_latitude=6.9271,  # Colombo center
+            depot_longitude=79.8612
         )
 
         self.vehicle2 = Vehicle.objects.create(
             vehicle_id="TRK002",
             capacity=80,
             status="available",
-            depot_latitude=6.9,
-            depot_longitude=79.9
+            depot_latitude=6.9275,
+            depot_longitude=79.8620
         )
 
+        # Shipments also within close proximity
         self.shipment1 = Shipment.objects.create(
             shipment_id=str(uuid.uuid4())[:12],
             order_id="ORD001",
-            origin={"lat": 6.9, "lng": 79.8},
-            destination={"lat": 7.2, "lng": 80.6},
+            origin={"lat": 6.9270, "lng": 79.8600},
+            destination={"lat": 6.9285, "lng": 79.8650},
             demand=40,
             status="pending"
         )
         self.shipment2 = Shipment.objects.create(
             shipment_id=str(uuid.uuid4())[:12],
             order_id="ORD002",
-            origin={"lat": 6.9, "lng": 79.9},
-            destination={"lat": 7.3, "lng": 80.7},
+            origin={"lat": 6.9265, "lng": 79.8615},
+            destination={"lat": 6.9290, "lng": 79.8645},
             demand=30,
             status="pending"
         )
         self.shipment3 = Shipment.objects.create(
             shipment_id=str(uuid.uuid4())[:12],
             order_id="ORD003",
-            origin={"lat": 7.0, "lng": 79.9},
-            destination={"lat": 7.4, "lng": 80.8},
+            origin={"lat": 6.9280, "lng": 79.8630},
+            destination={"lat": 6.9300, "lng": 79.8660},
             demand=50,
             status="pending"
         )
@@ -55,6 +57,7 @@ class AssignmentPlannerTestCase(TestCase):
             shipments=[self.shipment1, self.shipment2]
         )
         assignments = planner.plan_assignments()
+        print(assignments[0].items.all())
         self.assertLessEqual(len(assignments), 2)
         self.assertGreaterEqual(AssignmentItem.objects.count(), 2)
 
