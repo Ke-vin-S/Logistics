@@ -89,3 +89,64 @@ class AssignmentActionCompletionTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["message"], "Already marked complete")
+
+    def test_complete_assignment_successfully(self):
+        # Mark both pickup and delivery as completed
+        self.pickup_item.is_delivered = True
+        self.pickup_item.delivered_at = timezone.now()
+        self.pickup_item.save()
+
+        self.delivery_item.is_delivered = True
+        self.delivery_item.delivered_at = timezone.now()
+        self.delivery_item.save()
+
+        url = f"/api/assignments/{self.assignment.id}/complete/"
+        response = self.client.post(url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "completed")
+        self.assertEqual(response.data["delivered_items"], 2)
+        self.assertEqual(response.data["total_items"], 2)
+
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "completed")
+        self.assertIsNotNone(self.assignment.completed_at)
+
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.status, "available")
+
+    def test_complete_assignment_partially_completed(self):
+        # Only pickup is completed
+        self.pickup_item.is_delivered = True
+        self.pickup_item.delivered_at = timezone.now()
+        self.pickup_item.save()
+
+        url = f"/api/assignments/{self.assignment.id}/complete/"
+        response = self.client.post(url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "partially_completed")
+        self.assertEqual(response.data["delivered_items"], 1)
+        self.assertEqual(response.data["total_items"], 2)
+
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "partially_completed")
+        self.assertIsNotNone(self.assignment.completed_at)
+
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.status, "available")
+
+    def test_complete_assignment_no_items_delivered(self):
+        # No items are marked delivered
+        url = f"/api/assignments/{self.assignment.id}/complete/"
+        response = self.client.post(url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("No actions completed", response.data["error"])
+
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "created")  # status remains unchanged
+        self.assertIsNone(self.assignment.completed_at)
+
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.status, "available")

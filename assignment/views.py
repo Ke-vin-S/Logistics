@@ -150,3 +150,35 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             "new_status": item.shipment.status,
             "timestamp": item.delivered_at
         }, status=200)
+
+    @action(detail=True, methods=["post"], url_path="complete")
+    def complete_assignment(self, request, pk=None):
+        assignment = self.get_object()
+
+        # Check if all delivery/pickup items are completed
+        total_items = assignment.items.count()
+        delivered_items = assignment.items.filter(is_delivered=True).count()
+
+        if delivered_items == 0:
+            return Response({"error": "No actions completed. Cannot mark assignment as complete."}, status=400)
+
+        if delivered_items < total_items:
+            assignment.status = "partially_completed"
+        else:
+            assignment.status = "completed"
+
+        assignment.completed_at = timezone.now()
+        assignment.save(update_fields=["status", "completed_at"])
+
+        # Mark vehicle as available again
+        assignment.vehicle.status = "available"
+        assignment.vehicle.save(update_fields=["status"])
+
+        return Response({
+            "assignment_id": assignment.id,
+            "vehicle_id": assignment.vehicle.vehicle_id,
+            "status": assignment.status,
+            "completed_at": assignment.completed_at,
+            "delivered_items": delivered_items,
+            "total_items": total_items
+        }, status=200)
