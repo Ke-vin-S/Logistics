@@ -21,9 +21,21 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     depends_on:
       - zookeeper
+    networks:
+      - scms
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      kafka-topics --create --if-not-exists --topic orders.created --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --if-not-exists --topic shipment.status.updated --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+      "
     networks:
       - scms
 
@@ -52,6 +64,7 @@ services:
     environment:
       - KAFKA_BROKER_URL=kafka:9092
     depends_on:
+      - kafka-init
       - kafka
     env_file: .env
     networks:
